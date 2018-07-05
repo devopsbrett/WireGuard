@@ -51,11 +51,13 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	rwlock_init(&peer->endpoint_lock);
 	kref_init(&peer->refcount);
 	packet_queue_init(&peer->tx_queue, packet_tx_worker, false, MAX_QUEUED_PACKETS);
-	packet_queue_init(&peer->rx_queue, packet_rx_worker, false, MAX_QUEUED_PACKETS);
+	packet_queue_init(&peer->rx_queue, NULL, false, MAX_QUEUED_PACKETS);
 	skb_queue_head_init(&peer->staged_packet_queue);
 	list_add_tail(&peer->peer_list, &wg->peer_list);
 	pubkey_hashtable_add(&wg->peer_hashtable, peer);
 	peer->last_sent_handshake = ktime_get_boot_fast_ns() - (u64)(REKEY_TIMEOUT + 1) * NSEC_PER_SEC;
+	netif_napi_add(wg->dev, &peer->napi, packet_rx_poll, NAPI_POLL_WEIGHT);
+	napi_enable(&peer->napi);
 	pr_debug("%s: Peer %llu created\n", wg->dev->name, peer->internal_id);
 	return peer;
 }
@@ -85,6 +87,7 @@ void peer_remove(struct wireguard_peer *peer)
 	if (unlikely(!peer))
 		return;
 	lockdep_assert_held(&peer->device->device_update_lock);
+	netif_napi_del(&peer->napi);
 	allowedips_remove_by_peer(&peer->device->peer_allowedips, peer, &peer->device->device_update_lock);
 	pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);
 	skb_queue_purge(&peer->staged_packet_queue);

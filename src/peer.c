@@ -87,7 +87,6 @@ void peer_remove(struct wireguard_peer *peer)
 	if (unlikely(!peer))
 		return;
 	lockdep_assert_held(&peer->device->device_update_lock);
-	netif_napi_del(&peer->napi);
 	allowedips_remove_by_peer(&peer->device->peer_allowedips, peer, &peer->device->device_update_lock);
 	pubkey_hashtable_remove(&peer->device->peer_hashtable, peer);
 	skb_queue_purge(&peer->staged_packet_queue);
@@ -95,9 +94,11 @@ void peer_remove(struct wireguard_peer *peer)
 	noise_keypairs_clear(&peer->keypairs);
 	list_del_init(&peer->peer_list);
 	timers_stop(peer);
-	flush_workqueue(peer->device->packet_crypt_wq); /* The first flush is for encrypt/decrypt step. */
-	flush_workqueue(peer->device->packet_crypt_wq); /* The second flush is for send/receive step. */
+	flush_workqueue(peer->device->packet_crypt_wq); /* The first flush is for encrypt/decrypt. */
+	flush_workqueue(peer->device->packet_crypt_wq); /* The second.1 flush is for send (but not receive, since that's napi). */
+	napi_disable(&peer->napi); /* The second.2 flush is for receive (but not send, since that's wq). */
 	flush_workqueue(peer->device->handshake_send_wq);
+	netif_napi_del(&peer->napi);
 	--peer->device->num_peers;
 	peer_put(peer);
 }

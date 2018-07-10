@@ -21,6 +21,9 @@
 #define ISUBUNTU1404
 #endif
 #endif
+
+#define ISUBUNTU1404
+
 #ifdef CONFIG_SUSE_KERNEL
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
 #define ISOPENSUSE42
@@ -208,10 +211,10 @@ static inline void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) || defined(ISUBUNTU1404)) && !defined(ISRHEL7)
 #include <linux/random.h>
-static inline u32 prandom_u32_max(u32 ep_ro)
-{
-	return (u32)(((u64) prandom_u32() * ep_ro) >> 32);
-}
+// static inline u32 prandom_u32_max(u32 ep_ro)
+// {
+// 	return (u32)(((u64) prandom_u32() * ep_ro) >> 32);
+// }
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 75) && !defined(ISRHEL7)
